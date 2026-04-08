@@ -3,7 +3,7 @@ import sys
 from network_module.config import NetworkModule
 
 if len(sys.argv) < 5:
-    print("Usage: python3 -m scripts.cli set-ip <iface> <ip> <prefix> <gateway>")
+    print("Usage: python3 -m scripts.cli edit_profile <iface> <ip> <prefix> <gateway>")
     sys.exit(1)
 
 cmd = sys.argv[1]
@@ -14,8 +14,8 @@ gw = sys.argv[5]
 
 nm = NetworkModule()
 
-if cmd == "set-ip":
-    nm.set_ip(iface, ip, prefix, gw)
+if cmd == "edit_profile":
+    nm.edit_profile(iface, ip, prefix, gw)
 elif cmd == "enable-dhcp":
     nm.enable_dhcp(iface)
 else:
