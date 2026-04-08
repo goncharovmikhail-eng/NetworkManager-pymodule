@@ -1,87 +1,75 @@
-import dbus
+from gi.repository import GLib
+from pydbus import SystemBus
+import socket, struct
 
 class NetworkModule:
     def __init__(self):
-        # Подключение к D-Bus system bus
-        self.bus = dbus.SystemBus()
-        self.nm_proxy = self.bus.get_object(
-            "org.freedesktop.NetworkManager",
-            "/org/freedesktop/NetworkManager"
-        )
-        self.nm = dbus.Interface(self.nm_proxy, "org.freedesktop.NetworkManager")
+        self.bus = SystemBus()
+        self.nm = self.bus.get("org.freedesktop.NetworkManager",
+                               "/org/freedesktop/NetworkManager")
+        self.settings = self.bus.get("org.freedesktop.NetworkManager",
+                                     "/org/freedesktop/NetworkManager/Settings")
 
     def _get_connection_path(self, iface_name):
-        # Получаем путь соединения по имени интерфейса
-        connections = self.nm.ListConnections()
-        for path in connections:
-            conn_proxy = self.bus.get_object("org.freedesktop.NetworkManager", path)
-            settings = dbus.Interface(conn_proxy, "org.freedesktop.NetworkManager.Settings.Connection")
-            settings_dict = settings.GetSettings()
-            if settings_dict["connection"]["id"] == iface_name:
+        for path in self.settings.ListConnections():
+            conn = self.bus.get("org.freedesktop.NetworkManager", path)
+            props = conn.GetSettings()
+            if props["connection"]["interface-name"] == iface_name:
                 return path
-        raise ValueError(f"Interface {iface_name} not found")
+        raise ValueError(f"No connection profile for {iface_name}")
 
-    def set_ip(self, iface_name, ip_addr, prefix=24):
-        path = self._get_connection_path(iface_name)
-        conn_proxy = self.bus.get_object("org.freedesktop.NetworkManager", path)
-        settings = dbus.Interface(conn_proxy, "org.freedesktop.NetworkManager.Settings.Connection")
-        s = settings.GetSettings()
-        s["ipv4"]["method"] = "manual"
-        s["ipv4"]["address-data"] = [{"address": ip_addr, "prefix": prefix}]
-        settings.Update(s)
+    @staticmethod
+    def ip2uint(ip):
+        return struct.unpack("!I", socket.inet_aton(ip))[0]
 
-    def set_netmask(self, iface_name, prefix):
-        # просто обновляем префикс подсети
-        path = self._get_connection_path(iface_name)
-        conn_proxy = self.bus.get_object("org.freedesktop.NetworkManager", path)
-        settings = dbus.Interface(conn_proxy, "org.freedesktop.NetworkManager.Settings.Connection")
-        s = settings.GetSettings()
-        if "address-data" in s["ipv4"] and s["ipv4"]["address-data"]:
-            s["ipv4"]["address-data"][0]["prefix"] = prefix
-        settings.Update(s)
+    def set_ip(self, iface_name, ip, prefix=24, gw=None):
+        conn_path = self._get_connection_path(iface_name)
+        conn = self.bus.get("org.freedesktop.NetworkManager", conn_path)
 
-    def set_gateway(self, iface_name, gateway):
-        path = self._get_connection_path(iface_name)
-        conn_proxy = self.bus.get_object("org.freedesktop.NetworkManager", path)
-        settings = dbus.Interface(conn_proxy, "org.freedesktop.NetworkManager.Settings.Connection")
-        s = settings.GetSettings()
-        s["ipv4"]["gateway"] = gateway
-        settings.Update(s)
+        # Подготавливаем данные. 
+        # Ключи — обычные строки, значения — Variant-ы нужных типов.
+        ipv4_data = {
+            "method": GLib.Variant('s', "manual"),
+            "address-data": GLib.Variant('aa{sv}', [
+                {
+                    "address": GLib.Variant('s', ip),
+                    "prefix": GLib.Variant('u', int(prefix))
+                }
+            ])
+        }
 
-    def set_dns(self, iface_name, dns_list):
-        path = self._get_connection_path(iface_name)
-        conn_proxy = self.bus.get_object("org.freedesktop.NetworkManager", path)
-        settings = dbus.Interface(conn_proxy, "org.freedesktop.NetworkManager.Settings.Connection")
-        s = settings.GetSettings()
-        s["ipv4"]["method"] = "manual"
-        s["ipv4"]["dns"] = dns_list
-        settings.Update(s)
+        if gw:
+            ipv4_data["gateway"] = GLib.Variant('s', gw)
+
+        # Собираем итоговый словарь для pydbus.
+        # Не оборачивайте весь словарь в GLib.Variant вручную!
+        # pydbus сам упакует этот Python dict в аргумент метода Update.
+        settings = {
+            "connection": {
+                "id": GLib.Variant('s', iface_name),
+                "type": GLib.Variant('s', "802-3-ethernet"),
+                "interface-name": GLib.Variant('s', iface_name)
+            },
+            "ipv4": ipv4_data,
+            "ipv6": {
+                "method": GLib.Variant('s', "ignore")
+            }
+        }
+
+        # Вызов Update напрямую с обычным словарем (значения внутри — Variant)
+        conn.Update(settings)
+
+        # Активация
+        self.nm.ActivateConnection(conn_path, "/", "/")
 
     def enable_dhcp(self, iface_name):
-        path = self._get_connection_path(iface_name)
-        conn_proxy = self.bus.get_object("org.freedesktop.NetworkManager", path)
-        settings = dbus.Interface(conn_proxy, "org.freedesktop.NetworkManager.Settings.Connection")
-        s = settings.GetSettings()
-        s["ipv4"]["method"] = "auto"
-        settings.Update(s)
+        conn_path = self._get_connection_path(iface_name)
+        conn = self.bus.get("org.freedesktop.NetworkManager", conn_path)
 
-        # Получение текущих настроек
-        active_connections = self.nm.ActiveConnections()
-        for ac_path in active_connections:
-            ac_proxy = self.bus.get_object("org.freedesktop.NetworkManager", ac_path)
-            ac_iface = dbus.Interface(ac_proxy, "org.freedesktop.NetworkManager.Connection.Active")
-            conn_id = ac_iface.Id()
-            if conn_id == iface_name:
-                ip4_config_path = ac_iface.Ip4Config()
-                ip4_proxy = self.bus.get_object("org.freedesktop.NetworkManager", ip4_config_path)
-                ip4 = dbus.Interface(ip4_proxy, "org.freedesktop.NetworkManager.IP4Config")
-                addresses = ip4.Addresses()
-                gateway = ip4.Gateway()
-                nameservers = ip4.Nameservers()
-                return {
-                    "ip": addresses,
-                    "gateway": gateway,
-                    "dns": nameservers,
-                    "dhcp": True
-                }
-        return {}
+        settings = {
+            "ipv4": {"method": "auto"},
+            "ipv6": {"method": "ignore"}
+        }
+
+        conn.Update(settings)
+        self.nm.ActivateConnection(conn_path, "/", "/")

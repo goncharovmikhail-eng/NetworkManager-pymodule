@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-
+import sys
 from network_module.config import NetworkModule
+
+if len(sys.argv) < 5:
+    print("Usage: python3 -m scripts.cli set-ip <iface> <ip> <prefix> <gateway>")
+    sys.exit(1)
+
+cmd = sys.argv[1]
+iface = sys.argv[2]
+ip = sys.argv[3]
+prefix = int(sys.argv[4])
+gw = sys.argv[5]
 
 nm = NetworkModule()
 
-# Ручная конфигурация
-nm.set_ip("eth0", "192.168.1.42", 24)
-nm.set_gateway("eth0", "192.168.1.1")
-nm.set_dns("eth0", ["8.8.8.8", "8.8.4.4"])
-
-# Включение DHCP
-settings = nm.enable_dhcp("eth0")
-print(settings)
+if cmd == "set-ip":
+    nm.set_ip(iface, ip, prefix, gw)
+elif cmd == "enable-dhcp":
+    nm.enable_dhcp(iface)
+else:
+    print("Unknown command:", cmd)
