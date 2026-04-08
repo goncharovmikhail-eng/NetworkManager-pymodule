@@ -127,50 +127,41 @@ class NetworkModule:
         self._update_connection(conn, settings, path)
 
     def add_dns(self, iface_name, dns_ip):
-        from gi.repository import GLib
         conn_path = self._get_connection_path(iface_name)
         conn = self.bus.get("org.freedesktop.NetworkManager", conn_path)
         
         current_settings = conn.GetSettings()
         ipv4 = current_settings.get("ipv4", {})
 
+        # 1. Получаем список строк
         dns_list = [d["address"] for d in ipv4.get("dns-data", []) if "address" in d]
         if dns_ip not in dns_list:
             dns_list.append(dns_ip)
 
-        # 1. Строим секцию ipv4 (тип a{sv})
-        ipv4_builder = GLib.VariantBuilder(GLib.VariantType('a{sv}'))
-        
-        # Добавляем method
-        ipv4_builder.add('{sv}', 'method', GLib.Variant('s', ipv4.get("method", "manual")))
-        
-        # Добавляем dns-data (тип aa{sv})
-        dns_data_builder = GLib.VariantBuilder(GLib.VariantType('aa{sv}'))
-        for addr in dns_list:
-            item_builder = GLib.VariantBuilder(GLib.VariantType('a{sv}'))
-            item_builder.add('{sv}', 'address', GLib.Variant('s', addr))
-            dns_data_builder.add('a{sv}', item_builder.end())
-        
-        ipv4_builder.add('{sv}', 'dns-data', dns_data_builder.end())
+        # 2. Формируем структуру ЧИСТЫМИ данными Python
+        # Никаких вложенных GLib.Variant внутри списков!
+        dns_data_raw = [{"address": addr} for addr in dns_list]
 
-        # Если были адреса, их НУЖНО перенести (иначе они удалятся)
+        # 3. Собираем ipv4_data как в работающей функции
+        ipv4_data = {
+            "method": GLib.Variant('s', ipv4.get("method", "manual")),
+            "dns-data": GLib.Variant('aa{sv}', dns_data_raw) 
+        }
+
+        # Если есть старые адреса, копируем их тоже чистыми данными
         if "address-data" in ipv4:
-            addr_data_builder = GLib.VariantBuilder(GLib.VariantType('aa{sv}'))
+            # Превращаем обратно в чистый список словарей без Variant
+            raw_addr = []
             for addr in ipv4["address-data"]:
-                item_builder = GLib.VariantBuilder(GLib.VariantType('a{sv}'))
-                for k, v in addr.items():
-                    item_builder.add('{sv}', k, GLib.Variant('s' if isinstance(v, str) else 'u', v))
-                addr_data_builder.add('a{sv}', item_builder.end())
-            ipv4_builder.add('{sv}', 'address-data', addr_data_builder.end())
+                raw_addr.append({k: v for k, v in addr.items()})
+            ipv4_data["address-data"] = GLib.Variant('aa{sv}', raw_addr)
 
-        # 2. Строим финальный контейнер (тип a{sa{sv}})
-        final_builder = GLib.VariantBuilder(GLib.VariantType('a{sa{sv}}'))
-        final_builder.add('{sa{sv}}', 'ipv4', ipv4_builder.end())
+        # Итоговый объект как в edit_profile
+        settings = {
+            "ipv4": GLib.Variant('a{sv}', ipv4_data)
+        }
 
-        # 3. Вызов через pydbus (теперь KeyError не будет, так как мы даем чистый Variant)
-        # Распаковываем Variant обратно в dict для pydbus
-        conn.Update(final_builder.end().unpack())
-        
+        conn.Update(settings)
         self.nm.ActivateConnection(conn_path, "/", "/")
 
 
