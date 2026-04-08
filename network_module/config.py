@@ -132,17 +132,26 @@ class NetworkModule:
         settings = conn.GetSettings()
         ipv4 = settings["ipv4"]
 
-        # Собираем текущие DNS в список строк
-        dns_list = [d["address"].unpack() for d in ipv4.get("dns-data", [])]
+        # текущие DNS
+        dns_list = []
+        for d in ipv4.get("dns-data", []):
+            addr_variant = d.get("address")
+            if addr_variant:
+                dns_list.append(addr_variant.unpack())
+
+        # добавляем новый
         dns_list.append(dns_ip)
 
-        # Перезаписываем dns-data с правильным форматом GLib.Variant
-        ipv4["dns-data"] = GLib.Variant('aa{sv}', [
-            {"address": GLib.Variant('s', d)} for d in dns_list
-        ])
+        # формируем Variant правильно
+        dns_variant_list = []
+        for addr in dns_list:
+            dns_variant_list.append(GLib.Variant('a{sv}', {"address": GLib.Variant('s', addr)}))
 
-        # Обновляем профиль
-        self._update_connection(conn, settings, conn_path)
+        ipv4["dns-data"] = GLib.Variant('aa{sv}', dns_variant_list)
+
+        # обновляем профиль
+        conn.Update(settings)
+        self.nm.ActivateConnection(conn_path, "/", "/")
 
     def enable_dhcp(self, iface_name):
         conn, path = self._get_conn(iface_name)
