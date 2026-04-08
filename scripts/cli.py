@@ -31,9 +31,9 @@ def main():
     p_prefix.add_argument("prefix", type=int)
 
     # -----------------------------
-    # add-dns
+    # add_dns
     # -----------------------------
-    p_dns = subparsers.add_parser("add-dns", help="Add DNS server")
+    p_dns = subparsers.add_parser("add_dns", help="Add DNS server")
     p_dns.add_argument("iface")
     p_dns.add_argument("dns")
 
@@ -64,7 +64,7 @@ def main():
         nm.set_prefix_only(args.iface, args.prefix)
         print(f"Prefix updated for {args.iface}")
 
-    elif args.command == "add-dns":
+    elif args.command == "add_dns":
         nm.add_dns(args.iface, args.dns)
         print(f"DNS {args.dns} added to {args.iface}")
 
