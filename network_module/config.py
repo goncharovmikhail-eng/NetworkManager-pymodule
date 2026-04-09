@@ -42,15 +42,19 @@ class NetworkModule:
                 return conn, path
 
         raise ValueError(f"Interface {iface} not found")
+    
+    def _mask_to_prefix(mask: str) -> int:
+        """Конвертирует маску вида 255.255.255.0 в префикс (например, 24)"""
+        try:
+            return bin(struct.unpack('>I', socket.inet_aton(mask))[0]).count('1')
+        except Exception:
+            raise ValueError(f"Некорректный формат маски: {mask}")
 
     def _ip_to_u32(self, ip):
         return struct.unpack("!I", socket.inet_aton(ip))[0]
 
     def _u32_to_ip(self, val):
         return socket.inet_ntoa(struct.pack("!I", int(val)))
-
-    def _netmask_to_prefix(self, mask):
-        return ipaddress.IPv4Network(f"0.0.0.0/{mask}").prefixlen
 
     def _validate(self, ip, prefix, gw=None):
         ip_obj = ipaddress.ip_address(ip)

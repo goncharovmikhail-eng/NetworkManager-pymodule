@@ -22,7 +22,7 @@ python3 -m scripts.cli set-prefix eth1 24
 # 5. включить DHCP обратно
 python3 -m scripts.cli enable-dhcp eth1)
 4. unit_test:
-Добавлять dns если ping -c 1 $address - true
+Добавлять dns если ping -c 1 $address - true, если нет то warning.
 Добавлять если не был добавлен ранее. т.е дубликатов. Если есть дубликат, то warning! Уже есть. Pass.
 
 ---пример ---
@@ -80,6 +80,14 @@ python3 -m scripts.cli enable-dhcp eth1)
 2. 0 - блокируем
 3. 32 - исключение - выводим warning что единичный хост сети. 
 проверка на отключение dhcp сервера нет тк method = manual в функциях
+
+проверка dhcp auto
+set ip 1565566
+get_pofile - смотрим данные
+dhcp auto
+get_pofile - смотрим данные
+---
+если изменились, значит тест прошел успешно.
 
 
 

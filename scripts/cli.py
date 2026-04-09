@@ -3,32 +3,28 @@ import argparse
 import logging
 import sys
 import asyncio
+# import socket
+# import struct
 
 from network_module.config import NetworkModule
-
 
 # -----------------------------
 # Logging setup
 # -----------------------------
-def setup_logging(verbose: bool):
-    level = logging.DEBUG if verbose else logging.INFO
-
+def setup_logging():
     logging.basicConfig(
-        level=level,
+        level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-
 logger = logging.getLogger(__name__)
-
 
 # -----------------------------
 # Async wrappers
 # -----------------------------
 async def run_blocking(func, *args):
     return await asyncio.to_thread(func, *args)
-
 
 # -----------------------------
 # Main async CLI
@@ -40,46 +36,37 @@ async def async_main():
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # -----------------------------
     # get-profile
-    # -----------------------------
     p_get = subparsers.add_parser("get-profile")
     p_get.add_argument("iface")
 
-    # -----------------------------
     # set-ip
-    # -----------------------------
     p_ip = subparsers.add_parser("set-ip")
     p_ip.add_argument("iface")
     p_ip.add_argument("ip")
 
-    # -----------------------------
-    # set-prefix
-    # -----------------------------
+    # set-prefix (числом)
     p_prefix = subparsers.add_parser("set-prefix")
     p_prefix.add_argument("iface")
     p_prefix.add_argument("prefix", type=int)
 
-    # -----------------------------
+    # set-mask (строкой вида 255.255.255.0)
+    p_mask = subparsers.add_parser("set-mask")
+    p_mask.add_argument("iface")
+    p_mask.add_argument("mask")
+
     # add-dns
-    # -----------------------------
     p_dns = subparsers.add_parser("add-dns")
     p_dns.add_argument("iface")
     p_dns.add_argument("dns")
 
-    # -----------------------------
     # DHCP
-    # -----------------------------
-    p_dhcp_on = subparsers.add_parser("enable-dhcp")
-    p_dhcp_on.add_argument("iface")
-
-    p_dhcp_off = subparsers.add_parser("disable-dhcp")
-    p_dhcp_off.add_argument("iface")
+    subparsers.add_parser("enable-dhcp").add_argument("iface")
+    subparsers.add_parser("disable-dhcp").add_argument("iface")
+    subparsers.add_parser("auto-dhcp").add_argument("iface")
 
     args = parser.parse_args()
-
-    setup_logging(args.verbose)
-
+    setup_logging()
     nm = NetworkModule()
 
     try:
@@ -97,31 +84,25 @@ async def async_main():
             await run_blocking(nm.set_prefix, args.iface, args.prefix)
             logger.info("Prefix updated for %s -> /%s", args.iface, args.prefix)
 
+        elif args.command == "set-mask":
+            prefix = nm.mask_to_prefix(args.mask)
+            await run_blocking(nm.set_prefix, args.iface, prefix)
+            logger.info("Mask %s converted to /%s and updated for %s", args.mask, prefix, args.iface)
+
         elif args.command == "add-dns":
             await run_blocking(nm.add_dns, args.iface, args.dns)
             logger.info("DNS %s added to %s", args.dns, args.iface)
 
-        elif args.command == "enable-dhcp":
+        elif args.command in ["enable-dhcp", "auto-dhcp"]:
             await run_blocking(nm.enable_dhcp, args.iface)
             logger.info("DHCP enabled on %s", args.iface)
 
-        elif args.command == "disable-dhcp":
-            await run_blocking(nm.disable_dhcp, args.iface)
-            logger.info("DHCP disabled on %s", args.iface)
-
     except Exception as e:
-        logger.error("Operation failed: %s", e)
-        if args.verbose:
-            logger.exception("Stack trace:")
+        logger.exception("Operation failed: %s", e)
         sys.exit(1)
 
-
-# -----------------------------
-# Entry point
-# -----------------------------
 def main():
     asyncio.run(async_main())
-
 
 if __name__ == "__main__":
     main()
