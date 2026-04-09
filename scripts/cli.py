@@ -33,7 +33,7 @@ def main():
     # -----------------------------
     # add_dns
     # -----------------------------
-    p_dns = subparsers.add_parser("add_dns", help="Add DNS server")
+    p_dns = subparsers.add_parser("add-dns", help="Add DNS server")
     p_dns.add_argument("iface")
     p_dns.add_argument("dns")
 
@@ -57,11 +57,11 @@ def main():
         print(profile)
 
     elif args.command == "set-ip":
-        nm.set_ip_only(args.iface, args.ip)
+        nm.set_ip(args.iface, args.ip)
         print(f"IP updated for {args.iface}")
 
     elif args.command == "set-prefix":
-        nm.set_prefix_only(args.iface, args.prefix)
+        nm.set_prefix(args.iface, args.prefix)
         print(f"Prefix updated for {args.iface}")
 
     elif args.command == "add_dns":

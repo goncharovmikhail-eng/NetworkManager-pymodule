@@ -1,2 +1,4 @@
-pygobject
-pydbus    
+socket
+struct
+dbus-python==1.3.2
+argparse
