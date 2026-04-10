@@ -4,7 +4,6 @@ import ipaddress
 
 from network_module.helpers import NMHelpers
 from .validation import _validate_ip, _validate_prefix
-from .builders import _prepare_ipv4
 
 class NetworkModule:
     def __init__(self):
@@ -28,7 +27,7 @@ class NetworkModule:
         return {
             "method": str(ipv4.get('method', '')),
             "gateway": str(ipv4.get('gateway', '')),
-            "dns": [self._u32_to_ip(x) for x in ipv4.get('dns', [])],
+            "dns": [self.helpers._u32_to_ip(x) for x in ipv4.get('dns', [])],
             "addresses": [
                 f"{a['address']}/{a['prefix']}"
                 for a in ipv4.get('address-data', [])
@@ -40,7 +39,7 @@ class NetworkModule:
         self.helpers.ensure_managed(iface)
 
         if self.helpers.is_default_interface(iface):
-            print(f"WARNING: {iface} is default route interface! Risk of losing SSH")
+            print(f"WARNING: {iface} is default route interface! ")
 
         conn, path = self.helpers.get_conn(iface)
         s = conn.GetSettings()
@@ -57,14 +56,16 @@ class NetworkModule:
 
         _validate_ip(ip, prefix, gw)
 
-        ipv4 = _prepare_ipv4(old, ip=ip, prefix=prefix)
+        ipv4 = self.helpers._prepare_ipv4(old, ip=ip, prefix=prefix)
         self.helpers.update(conn, path, iface, ipv4)
-
-    def set_ip(self, iface, ip):
+    
+    def set_prefix(self, iface, prefix):
         self.helpers.ensure_managed(iface)
 
-        if self.helpers.is_default_interface(iface):
-            print(f"WARNING: {iface} is default route interface! Risk of losing SSH")
+        if isinstance(prefix, str) and "." in prefix:
+            prefix = self.helpers.mask_to_prefix(prefix)
+        else:
+            prefix = int(prefix)
 
         conn, path = self.helpers.get_conn(iface)
         s = conn.GetSettings()
@@ -73,15 +74,15 @@ class NetworkModule:
         addr_data = old.get('address-data', [])
 
         if not addr_data:
-            prefix = 24
-        else:
-            prefix = int(addr_data[0].get('prefix', 24))
+            raise ValueError("No IP configured. Set IP first.")
 
+        ip = str(addr_data[0]['address'])
         gw = old.get('gateway')
 
-        _validate_ip(ip, prefix, gw)
+        _validate_prefix(ip, prefix)
+        #_validate_ip(ip, prefix, gw)
 
-        ipv4 = _prepare_ipv4(old, ip=ip, prefix=prefix)
+        ipv4 = self.helpers._prepare_ipv4(old, ip=ip, prefix=prefix)
         self.helpers.update(conn, path, iface, ipv4)
 
     def add_dns(self, iface, dns_ip):
@@ -100,7 +101,7 @@ class NetworkModule:
 
         dns.append(dns_ip)
 
-        ipv4 = _prepare_ipv4(old, dns=dns)
+        ipv4 = self.helpers._prepare_ipv4(old, dns=dns)
         self.helpers.update(conn, path, iface, ipv4)
 
     def auto_dhcp(self, iface):
@@ -132,7 +133,7 @@ class NetworkModule:
         settings = conn.GetSettings()
         old = settings.get('ipv4', {})
 
-        ipv4 = _prepare_ipv4(
+        ipv4 = self.helpers._prepare_ipv4(
             old,
             ip=ip,
             prefix=prefix,
@@ -174,3 +175,6 @@ class NetworkModule:
 
     def edit_profile_async(self, iface, ip, prefix=24, gw=None, callback=None):
         self._async(self.edit_profile, callback, iface, ip, prefix, gw)
+
+    def get_profile_async(self, iface, ip, prefix=24, gw=None, callback=None):
+        self._async(self.get_profile, callback, iface, ip, prefix, gw)

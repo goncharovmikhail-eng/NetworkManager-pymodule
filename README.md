@@ -38,11 +38,51 @@ WARNING: test0 is default route interface!
 
 ---
 test
+root@main ~/projects/NetworkManager-pymodule (develop2 *) ➜ python3 -m scripts.cli add-dns test0 8.8.8.8
+2026-04-10 09:49:42,411 [INFO] DNS added
+---
+test
+root@main ~/projects/NetworkManager-pymodule (develop2 *) ➜ python3 -m scripts.cli add-dns test0 8.8.8.8
+WARNING: DNS 8.8.8.8 already exists
+2026-04-10 09:49:49,563 [INFO] DNS added 
+---
+test
+python3 -m scripts.cli set-ip test0 192.168.5.123ddf ValueError: '192.168.5.123ddf' does not appear to be an IPv4 or IPv6 address
+root@main ~/projects/NetworkManager-pymodule (develop2 *) ➜ python3 -m scripts.cli set-ip test0 192.168.5.123
+WARNING: test0 is default route interface! 
+WARNING: gateway 192.168.1.1 not in 192.168.5.0/24
+2026-04-10 09:55:26,155 [INFO] IP updated
+root@main ~/projects/NetworkManager-pymodule (develop2 *) ➜ python3 -m scripts.cli get-profile test0
+2026-04-10 09:55:55,413 [INFO] method: manual
+2026-04-10 09:55:55,413 [INFO] gateway: 192.168.1.1
+2026-04-10 09:55:55,413 [INFO] dns: ['8.8.8.8']
+2026-04-10 09:55:55,413 [INFO] addresses: ['192.168.5.123/24'] = > условие _validate_ip - ок and проверка на default ok
 
+---
+test
+python3 -m scripts.cli set-ip test0 5.4.5.5 
+ValueError: 5.4.5.5 is PUBLIC. Only private networks allowed условие _validate_ip - ок 
+
+---
+test
+python3 -m scripts.cli set-prefix test0 8 ValueError: Prefix /8 too small for 192.168.0.0/16
+---
+test
+python3 -m scripts.cli set-prefix test0 16 ; 2026-04-10 10:07:57,163 [INFO] Prefix updated
+---
+test
+root@main ~/projects/NetworkManager-pymodule (develop2 *) ➜ python3 -m scripts.cli enable-dhcp test0
+2026-04-10 10:54:52,090 [INFO] DHCP enabled
+root@main ~/projects/NetworkManager-pymodule (develop2 *) ➜ python3 -m scripts.cli get-profile test0
+2026-04-10 10:54:55,702 [INFO] method: auto
+2026-04-10 10:54:55,702 [INFO] gateway:
+2026-04-10 10:54:55,702 [INFO] dns: []
+2026-04-10 10:54:55,702 [INFO] addresses: []
+empty т.к нет dhcp сервер
 
 1. build pip-module - собирается в докер контейнере и выплевывается локально на машину
 2. build cli-binary - собирается в докер контейнере и выплевывается локально на машину
-3. smoke_test (python3 -m scripts.cli get-profile eth1
+3. smoke_test python3 -m scripts.cli get-profile eth1
 
 # 2. добавить DNS
 python3 -m scripts.cli add-dns eth1 8.8.8.8
@@ -54,7 +94,7 @@ python3 -m scripts.cli set-ip eth1 192.168.5.123
 python3 -m scripts.cli set-prefix eth1 24
 
 # 5. включить DHCP обратно
-python3 -m scripts.cli enable-dhcp eth1)
+python3 -m scripts.cli enable-dhcp eth1
 4. unit_test:
 Добавлять dns если ping -c 1 $address - true, если нет то warning.
 Добавлять если не был добавлен ранее. т.е дубликатов. Если есть дубликат, то warning! Уже есть. Pass.

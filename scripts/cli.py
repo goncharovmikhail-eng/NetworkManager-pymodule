@@ -80,7 +80,7 @@ async def main():
             logger.info("DNS added")
 
         elif args.cmd == "enable-dhcp":
-            await run_blocking(nm.enable_dhcp, args.iface)
+            await run_blocking(nm.auto_dhcp, args.iface)
             logger.info("DHCP enabled")
 
         elif args.cmd == "edit-profile":
