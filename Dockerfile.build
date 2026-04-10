@@ -1,0 +1,10 @@
+FROM python:3.11-slim
+
+WORKDIR /build
+RUN pip install build setuptools wheel
+
+COPY pyproject.toml README.md ./
+COPY network_module ./network_module
+
+# Вместо RUN используем CMD, чтобы сборка шла при запуске контейнера
+CMD ["python", "-m", "build", "--no-isolation", "--outdir", "/output"]
