@@ -3,7 +3,6 @@ import argparse
 import logging
 import sys
 import asyncio
-
 from network_module.config import NetworkModule
 
 

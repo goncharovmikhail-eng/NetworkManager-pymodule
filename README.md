@@ -84,17 +84,18 @@ empty т.к нет dhcp сервер
 2. build cli-binary - собирается в докер контейнере и выплевывается локально на машину
 3. smoke_test python3 -m scripts.cli get-profile eth1
 
+python3 -m scripts.cli edit-profile test0 192.168.1.200 24 --gw 192.168.1.1
 # 2. добавить DNS
-python3 -m scripts.cli add-dns eth1 8.8.8.8
+python3 -m scripts.cli add-dns test0 8.8.8.8
 
 # 3. сменить IP
-python3 -m scripts.cli set-ip eth1 192.168.5.123
+python3 -m scripts.cli set-ip test0 192.168.5.123
 
 # 4. сменить prefix
-python3 -m scripts.cli set-prefix eth1 24
+python3 -m scripts.cli set-prefix test0 24
 
 # 5. включить DHCP обратно
-python3 -m scripts.cli enable-dhcp eth1
+python3 -m scripts.cli enable-dhcp test0
 4. unit_test:
 Добавлять dns если ping -c 1 $address - true, если нет то warning.
 Добавлять если не был добавлен ранее. т.е дубликатов. Если есть дубликат, то warning! Уже есть. Pass.
@@ -155,13 +156,8 @@ python3 -m scripts.cli enable-dhcp eth1
 3. 32 - исключение - выводим warning что единичный хост сети. 
 проверка на отключение dhcp сервера нет тк method = manual в функциях
 
-проверка dhcp auto
-set ip 1565566
-get_pofile - смотрим данные
-dhcp auto
-get_pofile - смотрим данные
----
-если изменились, значит тест прошел успешно.
+
+
 
 
 
