@@ -33,7 +33,10 @@ async def main():
 
     p = sub.add_parser("set-prefix")
     p.add_argument("iface")
-    p.add_argument("prefix", type=int)
+    p.add_argument(
+        "prefix",
+        help="Prefix (24) or netmask (255.255.255.0)"
+    )
 
     p = sub.add_parser("set-mask")
     p.add_argument("iface")

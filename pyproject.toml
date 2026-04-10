@@ -1,28 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "network-manager-pymodule"
 version = "0.1.0"
-authors = [
-  { name="Mikhail Goncharov", email="goncharovmichael.o@gmail.com" },
-]
-description = "Модуль управления NetworkManager через D-Bus"
-readme = "README.md"
 requires-python = ">=3.8"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: POSIX :: Linux",
-]
+
 dependencies = [
     "dbus-python==1.3.2",
 ]
 
-[project.scripts]
-nm-pymodule-cli = "scripts.cli:main"
-
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["network_module*", "scripts*"]
-
+include = ["network_module*"]

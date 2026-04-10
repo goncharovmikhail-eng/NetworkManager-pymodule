@@ -96,9 +96,13 @@ class NMHelpers:
     # UTILS
     # =========================
 
+
+
     def mask_to_prefix(self, mask: str) -> int:
+        import ipaddress
         try:
-            return bin(struct.unpack('>I', socket.inet_aton(mask))[0]).count('1')
+            ipaddress.IPv4Address(mask)  # гарантирует IPv4 формат
+            return ipaddress.IPv4Network(f"0.0.0.0/{mask}").prefixlen
         except Exception:
             raise ValueError(f"Invalid netmask: {mask}")
 

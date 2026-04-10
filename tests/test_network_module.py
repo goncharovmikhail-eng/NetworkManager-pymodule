@@ -1,4 +1,6 @@
 import pytest
+import socket
+import struct
 from network_module.config import NetworkModule
 
 
@@ -45,6 +47,12 @@ class DummyHelpers:
 
     def update(self, conn, path, iface, ipv4):
         self.updated = ipv4
+    
+    def mask_to_prefix(self, mask: str) -> int:
+        try:
+            return bin(struct.unpack('>I', socket.inet_aton(mask))[0]).count('1')
+        except Exception:
+            raise ValueError(f"Invalid netmask: {mask}")
 
 
 # =========================
@@ -199,3 +207,40 @@ def test_enable_dhcp():
     nm.auto_dhcp("test0")
 
     assert nm.helpers.updated["method"] == "auto"
+
+# prefix and mask
+def test_set_mask_non_contiguous():
+    nm = NetworkModule()
+    nm.helpers = DummyHelpers()
+
+    with pytest.raises(ValueError):
+        nm.set_prefix("test0", "255.0.255.0")
+
+def test_set_mask_garbage():
+    nm = NetworkModule()
+    nm.helpers = DummyHelpers()
+
+    with pytest.raises(ValueError):
+        nm.set_prefix("test0", "abc.def.ghi.jkl")
+
+def test_set_mask_valid():
+    nm = NetworkModule()
+    nm.helpers = DummyHelpers()
+
+    nm.set_prefix("test0", "255.255.255.0")
+
+    assert nm.helpers.updated is not None
+
+def test_set_mask_invalid_format():
+    nm = NetworkModule()
+    nm.helpers = DummyHelpers()
+
+    with pytest.raises(ValueError):
+        nm.set_prefix("test0", "255.255.*")
+
+def test_set_prefix_zero():
+    nm = NetworkModule()
+    nm.helpers = DummyHelpers()
+
+    with pytest.raises(ValueError):
+        nm.set_prefix("test0", 0)

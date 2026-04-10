@@ -32,46 +32,59 @@ prepos_local:
 
 build:
 	@echo "[INFO] Создаем папку dist_out..."
-	@mkdir -p ./dist_out
+	@rm -rf dist_out
+	@mkdir -p dist_out
 
 	@echo "[INFO] Сборка docker image..."
-	@docker build -t nm-module-builder -f Dockerfile.build .
+	@DOCKER_BUILDKIT=1 docker build -t nm-module-builder -f Dockerfile.build .
 
 	@echo "[INFO] Запуск сборки wheel внутри контейнера..."
-	@docker run --rm -v "$(pwd)/dist_out:/output" nm-module-builder
+	# Теперь контейнер при запуске выполнит CMD и положит билд в примонтированную папку
+	@docker run --rm -v "$(PWD)/dist_out:/output" nm-module-builder
 
-	@echo "[DONE] Пакет собран:"
-	@ls -lah dist_out/dist || true
+	@echo "[INFO] Проверка результата..."
+	@ls -lah dist_out
 
-smoke-test:
+test-smoke:
 	@echo "[INFO] Проверка CLI сценариев..."
 
 	@python -m scripts get-profile test0
 	@echo "[INFO] Первично заполняем профиль"
 	@python3 -m scripts.cli edit-profile test0 192.168.1.200 24 --gw 192.168.1.1 || true
-	@python -m scripts get-profile test0
+	@python3 -m scripts get-profile test0
 
 	@echo "[STEP 1] DNS add"
 	@python3 -m scripts.cli add-dns test0 8.8.8.8 || true
-	@python -m scripts get-profile test0
+	@python3 -m scripts get-profile test0
 
 	@echo "[STEP 2] change IP"
 	@python3 -m scripts.cli set-ip test0 192.168.5.123 || true
-	@python -m scripts get-profile test0
+	@python3 -m scripts get-profile test0
 
 	@echo "[STEP 3] change prefix"
 	@python3 -m scripts.cli set-prefix test0 24 || true
-	@python -m scripts get-profile test0
+	@python3 -m scripts get-profile test0
 
 	@echo "[STEP 4] enable DHCP"
 	@python3 -m scripts.cli enable-dhcp test0 || true
-	@python -m scripts get-profile test0
+	@python3 -m scripts get-profile test0
 
 	@echo "[DONE] Smoke test completed"
 
+test-units:
+	@echo "[INFO] Running unit tests..."
+	@PYTHONPATH=. pytest -v tests
+
+reinstall:
+	@pip uninstall -y network-manager-pymodule || true
+	@rm -rf dist_out
+	@$(MAKE) build
+	@ls -lah dist_out
+	@pip install dist_out/*.whl
+	@python -c "import network_module; print(network_module.__file__)"
 
 # =========================
-# CLEAN (optional)
+# CLEAN
 # =========================
 clean:
 	@echo "[INFO] Cleaning build artifacts..."
