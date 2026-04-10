@@ -6,6 +6,40 @@
 
 
 Makefile goals:
+1. подготовка интерфейсов:
+удаление старых интерфейсов с именем test*
+создание 2 тестовых интерфейса 
+ip link add test0 type dummy
+ip link set test0 up
+nmcli dev set test0 managed yes
+nmcli dev status
+nmcli con add type dummy ifname test0 con-name test0
+nmcli con up test0
+ip link add test1 type dummy
+ip link set test1 up
+___
+потом в тестировании проверка метода ensure_managed на интерфейсе test1 
+python3 -m scripts.cli edit-profile test1 192.168.1.200 24 --gw 192.168.1.1 - RuntimeError: test1 is unmanaged by NetworkManager
+python3 -m scripts.cli edit-profile test2 192.168.1.200 24 --gw 192.168.1.1 ValueError: test2 not found
+python3 -m scripts.cli edit-profile test2 192.168.1.200 24  192.168.1.1 - usage: cli.py [-h] {get-profile,set-ip,set-prefix,set-mask,add-dns,enable-dhcp,edit-profile} ... - cli.py: error: unrecognized arguments: 192.168.1.1
+python3 -m scripts.cli edit-profile test0 192.168.1.200 24 --gw 192.168.1.1 ; 
+python3 -m scripts.cli get-profile test0
+2026-04-10 09:36:19,834 [INFO] method: manual
+2026-04-10 09:36:19,835 [INFO] gateway: 192.168.1.1
+2026-04-10 09:36:19,835 [INFO] dns: []
+2026-04-10 09:36:19,835 [INFO] addresses: ['192.168.1.200/24'] => get_profile - ok ; edit-profile - ok
+
+---
+test 
+если дважды ввести эту команду  python3 -m scripts.cli edit-profile test0 192.168.1.200 24 --gw 192.168.1.1 то на второй раз будет предупреждение т.к в 
+ip route добавиться default via 192.168.1.1 dev 
+test0 proto static metric 550
+WARNING: test0 is default route interface!
+
+---
+test
+
+
 1. build pip-module - собирается в докер контейнере и выплевывается локально на машину
 2. build cli-binary - собирается в докер контейнере и выплевывается локально на машину
 3. smoke_test (python3 -m scripts.cli get-profile eth1
@@ -92,3 +126,8 @@ get_pofile - смотрим данные
 
 
 5. stages_up
+
+
+
+
+
